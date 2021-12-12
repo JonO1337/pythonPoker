@@ -12,13 +12,14 @@ def main():
     #start connection handling thread
     queueThread = threading.Thread(target=connHandle.initSocket)
     queueThread.start()
+    
 
     #create the table
     mainTable = commons.Table()
     
 
     while True:
-        
+        mainTable.cleanUp()
         #connect players from queue if seats not full
         if len(mainTable.seats) < 6:
             #loop enough to fill all seats
@@ -38,15 +39,15 @@ def main():
             #deal and betsflop
 
             if mainTable.inPlay:
-                mainTable.flop()
+                mainTable.dealCards("FLOP",3)
 
             #deal and bets turn
             if mainTable.inPlay:
-                mainTable.oneCard("TURN")
+                mainTable.dealCards("TURN",1)
 
             #deal and bets river
             if mainTable.inPlay:
-                mainTable.oneCard("RIVER")
+                mainTable.dealCards("RIVER",1)
             #end the game
             if mainTable.inPlay:
                 mainTable.endGame()
@@ -54,6 +55,7 @@ def main():
             else:
                 mainTable.foldedEnd()
         else:
+            mainTable.sendAll("waiting for players...\n")
             time.sleep(1)
 
         #increment dealer seat

@@ -4,37 +4,83 @@ import handTypes
 RANKS = [2, 3, 4, 5, 6, 7, 8, 9, "T", "J", "Q", "K", "A"]
 SUITS = ["H", "D", "S", "C"]
 BLIND = 20
+CHIPSHEETPATH = "D:\python\python_poker\chips_sheet.txt"
+
+def readChipSheet():
+    with open(CHIPSHEETPATH,"rt") as chipSheet:
+        chipSheetAraay = []
+        for line in chipSheet:
+            chipSheetAraay.append(line.split())
+        return chipSheetAraay
+
+def readSearch(name,chipSheetArray):
+    while len(chipSheetArray) > 1:
+        i = len(chipSheetArray)//2
+        start = 0
+        stop = len(chipSheetArray)-1
+        while start!=stop:
+            i = (start+stop)//2
+            if name <= chipSheetArray[i][0]:
+                stop = i
+            else:
+                start= i+1
+        if chipSheetArray[start][0] == name:
+            return start
+        else:
+            return False
+
+def validateCreds(name,password):
+    chipSheetArray = readChipSheet()
+    playerPos = readSearch(name,chipSheetArray)
+    if chipSheetArray[playerPos]:
+        if chipSheetArray[playerPos][1] == password and int(chipSheetArray[playerPos][3]):
+            chipSheetArray[playerPos][3] = "0"
+            saveChipSheet(chipSheetArray)
+            return int(chipSheetArray[playerPos][2])
+    return False
+
+def savePlayer(name,chips):
+    chipSheetArray = readChipSheet()
+    playerPos = readSearch(name,chipSheetArray)
+    chipSheetArray[playerPos][3] = "1"
+    chipSheetArray[playerPos][2] = str(chips)
+    saveChipSheet(chipSheetArray)
+
+def saveChipSheet(sheet):
+    midArray=[]
+    for line in sheet:
+        midArray.append(" ".join(line))
+    out = "\n".join(midArray)
+    with open(CHIPSHEETPATH,"wt") as chipSheet:
+        chipSheet.write(out)
+    
+
+
+    
 
 #Queue data structure
 class Queue:
     
     #queue initialise 
-    def __init__(self,size,array=[]):
+    def __init__(self,size,array=None):
 
         #queue atributres
-        self.array=array
+        if array == None:
+            self.array= []
         self.size =size
-        self.head = 0
-        self.tail = len(self.array)
-        for i in range(size-self.tail):
-            self.array.append(None)
-        self.gap = self.tail - self.head
 
     #enqueue method (adds to queue)  
     def enqueue(self,data):
         if not(self.isFull()):
-            self.array[self.tail] = data
-            self.tail = (self.tail+1)%self.size
-            self.gap+=1
+            self.array.append(data)
         else:
             raise Exception("queue full")
     
     #dequeue method (returns front of queue and removes it from queue)
     def dequeue(self):
         if not(self.isEmpty()):
-            data = self.array[self.head]
-            self.head = (self.head +1)% self.size
-            self.gap-=1
+            data = self.array[0]
+            del self.array[0]
             return data
         else:
             raise Exception("queue empty")
@@ -42,20 +88,20 @@ class Queue:
     #peek method (returns front of queue)
     def peek(self):
         if not(self.isEmpty()):
-            return self.array[self.head]
+            return self.array[0]
         else:
             return None
     
     #isEmpty method (checks if queue is empty)
     def isEmpty(self):
-        if self.gap == 0:
+        if len(self.array) == 0:
             return True
         else:
             return False
         
     #isFull method (checks if queue is full)
     def isFull(self):
-        if self.gap == self.size:
+        if len(self.array) == self.size:
             return True
         else:
             return False
@@ -77,7 +123,7 @@ class Card:
 
     #score method (returns interger score of card)
     def score(self):
-        if type(self.rank) is int:
+        if isinstance(self.rank,int):
             return self.rank
         elif self.rank == "T":
             return 10 
@@ -151,13 +197,7 @@ class Common:
         for i in self.cards:
             string += str(i) +" "
         return string
-    #Common newGame method(takes in deck generates the first 3 cards)
-    def newGame(self,deck):
-        self.genCards(3,deck)
 
-    #Common turnOrRiver method(takes in deck generates a card)
-    def turnORriver(self,deck,):
-        self.genCards(1,deck)
 
     #genCards method (takes amount of cards and deck then deals cards to table)
     def genCards(self,amt,deck):
@@ -179,12 +219,33 @@ class Player:
         self.hand = None
         self.bet = 0
         self.sittingOut = False
+        self.connected = True
+
+    def __del__(self):
+        savePlayer(self.name,self.chips)
+
     
     #Player newGame method (takes in deck resets players hand and deals first two cards)
     def newGame(self,deck):
         self.hand = Hand()
-        self.hand.genCards(2,deck)
-        self.client.sendMsg((f"{self.name} : {self.hand}"))
+        self.hand.genCards(2,deck)    
+        self.sendMsg(f"{self.name} : {self.hand}\n")
+        
+    def sendMsg(self,msg):
+        try:
+            self.client.sendMsg(msg)
+        except Exception:
+            self.connected = False
+            self.sittingOut = True
+    def recive(self):
+        try: 
+            msg = self.client.recive()
+        except Exception:
+            self.connected = False
+            self.sittingOut = True
+            msg = False
+
+        return msg
 
     #Player blindBet method (takes the amt to bet removes from player returns False if player doesnt have enough chips else returns the amount bet)
     def blindBet(self,amt):
@@ -200,9 +261,11 @@ class Player:
     def callRaiseFold(self,current):
         for i in range(3):
             betamt = current-self.bet
-            self.client.sendMsg(f"{self.name}  >>>  Call:{betamt}   Raise  Fold  <<< : ")
-            opt = self.client.recive()
-            if opt.upper() =="CALL":
+            self.sendMsg(f"{self.name} chips: {self.chips}  >>>  Call:{betamt}   Raise  Fold  <<< : ")
+            opt = self.recive()
+            if opt == False:
+                break
+            elif opt.upper() =="CALL":
                 self.chips -= betamt
                 self.bet = current
                 if self.chips >= 0:
@@ -212,24 +275,40 @@ class Player:
                     return False
 
             elif opt.upper() =="RAISE":
-                self.client.sendMsg(f"{self.name}  >>> Amount to raise from [{current}] <<< : ")
-                amt = int(self.client.recive())
-                betamt = current + amt
-                self.chips -= betamt - self.bet
-                self.bet = betamt
-                if self.chips >= 0:
-                    return betamt
+                for x in range(3):
+                    try:
+                        self.sendMsg(f"{self.name}  >>> Amount to raise from [{current}] <<< : ")
+                        amt = int(self.recive())
+                        if amt >= 0:
+                            break
+                        raise Exception
+                    except Exception:
+                        self.sendMsg(f"{self.name}  >>> Amount must be positve interger You have {2-x} more attemps\n")
+                        amt = None
+                
+                if isinstance(amt,int):
+                    betamt = current + amt
+                    self.chips -= betamt - self.bet
+                    self.bet = betamt
+                    if self.chips >= 0:
+                        return betamt
+                    else:
+                        self.sittingOut=True
+                        return False
                 else:
-                    self.sittingOut=True
-                    return False
+                    self.sendMsg(f"{self.name}  >>> Raise failed choose again\n")
                     
             elif opt.upper() == "FOLD":
                 self.sittingOut=True
                 return
+                
             elif i<2:
-                self.client.sendMsg(f"{self.name}  >>>  Choice is not option try again ")
+                self.sendMsg(f"{self.name}  >>>  Choice is not option try again \n")
             else:
-                self.client.sendMsg(f"{self.name}  >>>  Too many failed attemps ")
+                self.sendMsg(f"{self.name}  >>>  Too many failed attemps \n")
+                self.sittingOut=True
+
+            
 
 
 
@@ -250,7 +329,7 @@ class Table:
 
     #Table addPlayer method (takes client connection and creates player on table)
     def addPlayer(self,client):
-        self.seats.append(Player("none",1000,client))
+        self.seats.append(client)
 
     #Table removePlayer method (takes seatNumber and removes)
     def removePlayer(self,seat):
@@ -259,7 +338,15 @@ class Table:
     #Table sendAll method(takes message and sends to all clients)
     def sendAll(self,msg):
         for i in self.seats:
-            i.client.sendMsg(msg)
+            if i.connected:
+                i.sendMsg(msg)
+                if not(i.connected):
+                    self.sittingOutCount +=1
+    def sendMsg(self,player,msg):
+        if player.connected:
+                player.sendMsg(msg)
+                if not(player.connected):
+                    self.sittingOutCount +=1
 
     #Table preFlop method(resets table takes blinds and deals preflop)
     def preFlop(self):
@@ -287,76 +374,22 @@ class Table:
             dealCount+=1
 
         i = (self.dealer+3) % len(self.seats)
-        currentBet = BLIND
-        bigBlindPlayed = False
-        #dev notes # boot dead players needed
-
-        while (self.seats[i].bet != currentBet or self.seats[i].sittingOut or not(bigBlindPlayed)) and self.inPlay:
-            if not(self.seats[i].sittingOut):
-
-                #dev notes # bust handling
-                bet = self.seats[i].callRaiseFold(currentBet)
-                print(bet)
-                if bet:
-                    self.pool += bet
-                    print(f"Pool now: {self.pool}")
-
-                    if self.seats[i].bet > currentBet:
-                        currentBet = self.seats[i].bet
-                else:
-                    if self.seats[i].sittingOut:
-                        self.sittingOutCount += 1
-                        if self.sittingOutCount >= len(self.seats)-1:
-                            self.inPlay=False
-
-            if i == (self.dealer + 2) % len(self.seats):
-                bigBlindPlayed = True
-
-            i = (i+1)%len(self.seats)
+        endp = (self.dealer + 2) % len(self.seats)
+        self.takeBets(BLIND,i,endp)
 
         for i in self.seats:
             i.bet = 0
         
-        
-
-
-    #Table flop method (deals the flop) 
-    def flop(self):
-        self.common.newGame(self.deck)
-        self.sendAll(f"THE FLOP : {self.common.cards}")
-        i = (self.dealer+1) % len(self.seats)
-        currentBet = 0
-        loopComplete = False
-        while (self.seats[i].bet != currentBet or self.seats[i].sittingOut or not(loopComplete)) and self.inPlay:
-            if not(self.seats[i].sittingOut):
-                    #bust handling      -------------------------------------------------------------<<<<<<
-                bet = self.seats[i].callRaiseFold(currentBet)
-                if bet:
-                    self.pool += bet
-
-                else:
-                    if self.seats[i].sittingOut:
-                        self.sittingOutCount += 1
-                        if self.sittingOutCount >= len(self.seats)-1:
-                            self.inPlay=False
-                
-
-
-                if self.seats[i].bet > currentBet:
-                    currentBet = self.seats[i].bet
-            if i == self.dealer:
-                loopComplete = True
-            i = (i+1)%len(self.seats)
-        for i in self.seats:
-            i.bet = 0
-
         
     #Table one card method (takes in name eg/turn or river and deals one card)
-    def oneCard(self,name):
-        self.common.turnORriver(self.deck)
-        self.sendAll(f"THE {name} : {self.common.cards}")
+    def dealCards(self,name,amt):
+        self.common.genCards(amt,self.deck)
+        self.sendAll(f"\nTHE {name} : {self.common.cards}\n\n")
         i = (self.dealer+1) % len(self.seats)
-        currentBet = 0
+        endp = (i+1) % len(self.seats)
+        self.takeBets(0,i,endp)
+
+    def takeBets(self,currentBet,i,endp):
         loopComplete = False
         while (self.seats[i].bet != currentBet or self.seats[i].sittingOut or not(loopComplete)) and self.inPlay:
             if not(self.seats[i].sittingOut):
@@ -364,22 +397,23 @@ class Table:
                 bet = self.seats[i].callRaiseFold(currentBet)
                 if bet:
                     self.pool += bet
-                    print(f"Pool now: {self.pool}")
+                    self.sendAll(f"Pool : {self.pool}\n")
                 
                 else:
                     if self.seats[i].sittingOut:
                         self.sittingOutCount += 1
-                        if self.sittingOutCount >= len(self.seats)-1:
-                            self.inPlay=False
 
                 if self.seats[i].bet > currentBet:
                     currentBet = self.seats[i].bet
-            if i == self.dealer:
+            if i == endp:
                 loopComplete = True
+            if self.sittingOutCount >= len(self.seats)-1:
+                self.inPlay=False
             i = (i+1)%len(self.seats)
-
         for i in self.seats:
             i.bet = 0
+
+
         
     #Table endGame method (ends the game and sorts winners)
     def endGame(self):
@@ -392,7 +426,7 @@ class Table:
         
 
         if finishers:
-            self.sendAll(f"{finishers[0].name} Won!!! with {finishers[0].hand.hand}")
+            self.sendAll(f"{finishers[0].name} Won {self.pool} !!! with {finishers[0].hand.hand}\n")
             finishers[0].chips += self.pool
         else:
             print("Error")
@@ -400,7 +434,9 @@ class Table:
         self.end()
     #Table end method(runs end of game resets)
     def end(self):
+        self.cleanUp()
         for i in self.seats:
+            self.sendMsg(i,f"Balance : {i.chips}\n\n")
             i.sittingOut = False
         self.inPlay=True
         self.sittingOutCount = 0 
@@ -408,7 +444,11 @@ class Table:
         self.dealer= self.dealer+1 % len(self.seats)
         self.deck= Deck()
         self.common = Common()
-    
+    def cleanUp(self):
+        for seat ,i in enumerate(self.seats):
+            if not(i.connected):
+                self.removePlayer(seat)
+                
     #Table foldedEnd(ends game when winner is only none folded player)
     def foldedEnd(self):
         winner = None
@@ -416,7 +456,9 @@ class Table:
             if not(i.sittingOut):
                 winner = i
                 break
-        self.sendAll(f"{winner.name} Won!!! As everyone folded. ")
+        if winner:
+            winner.chips += self.pool
+            self.sendAll(f"{winner.name} Won {self.pool} chips !!! As everyone folded. \n")
         self.end()
 
     
