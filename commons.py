@@ -277,12 +277,11 @@ class Player:
 
             elif opt.upper() =="RAISE":
                 for x in range(3):
+                    self.sendMsg(f"{self.name}  >>> Amount to raise from [{current}] <<< : ")
                     try:
-                        self.sendMsg(f"{self.name}  >>> Amount to raise from [{current}] <<< : ")
                         amt = int(self.recive())
                         if amt >= 0:
                             break
-                        raise Exception
                     except Exception:
                         self.sendMsg(f"{self.name}  >>> Amount must be positve interger You have {2-x} more attemps\n")
                         amt = None
