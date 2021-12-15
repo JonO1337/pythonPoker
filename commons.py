@@ -66,6 +66,8 @@ class Queue:
         #queue atributres
         if array == None:
             self.array= []
+        else:
+            self.array = array
         self.size =size
 
     #enqueue method (adds to queue)  
