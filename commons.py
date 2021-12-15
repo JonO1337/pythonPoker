@@ -31,7 +31,7 @@ def readSearch(name,chipSheetArray):
 def validateCreds(name,password):
     chipSheetArray = readChipSheet()
     playerPos = readSearch(name,chipSheetArray)
-    if chipSheetArray[playerPos]:
+    if isinstance(playerPos,int):
         if chipSheetArray[playerPos][1] == password and int(chipSheetArray[playerPos][3]):
             chipSheetArray[playerPos][3] = "0"
             saveChipSheet(chipSheetArray)
