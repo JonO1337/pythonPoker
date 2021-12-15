@@ -14,20 +14,19 @@ def readChipSheet():
         return chipSheetAraay
 
 def readSearch(name,chipSheetArray):
-    while len(chipSheetArray) > 1:
-        i = len(chipSheetArray)//2
-        start = 0
-        stop = len(chipSheetArray)-1
-        while start!=stop:
-            i = (start+stop)//2
-            if name <= chipSheetArray[i][0]:
-                stop = i
-            else:
-                start= i+1
-        if chipSheetArray[start][0] == name:
-            return start
+    i = len(chipSheetArray)//2
+    start = 0
+    stop = len(chipSheetArray)-1
+    while start!=stop:
+        i = (start+stop)//2
+        if name <= chipSheetArray[i][0]:
+            stop = i
         else:
-            return False
+            start= i+1
+    if chipSheetArray[start][0] == name:
+        return start
+    else:
+        return False
 
 def validateCreds(name,password):
     chipSheetArray = readChipSheet()
