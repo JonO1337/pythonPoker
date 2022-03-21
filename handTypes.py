@@ -125,7 +125,8 @@ class StraightFlush:
 
 #checkHand function (takes list of cards returns highest scoring hand object) 
 def checkHand(cards):
-    
+    if len(cards) <5 :
+        raise Exception("Not Enough cards.")
     tempCards = cards.copy()
     rankCount = {"A":[],"K":[],"Q":[],"J":[],"T":[],9:[],8:[],7:[],6:[],5:[],4:[],3:[],2:[]}
     suits = {"H":[],"S":[],"D":[],"C":[]}
@@ -201,11 +202,11 @@ def checkHand(cards):
         best = Straight(straight)
 
     for i in suits:
-        if len(suits[i])==5:
-            if scheck and suits[i] == straight:
-                best = StraightFlush(suits[i])
+        if len(suits[i])>=5:
+            if scheck and all(elem in suits[i] for elem in straight):
+                best = StraightFlush(straight)
             elif best.score() < 3796875:
-                best = Flush(suits[i])
+                best = Flush(sorted(suits[i],key=lambda x:x.value, reverse=True)[:5])
                 
                 
     return best

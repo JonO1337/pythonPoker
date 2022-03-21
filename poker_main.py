@@ -6,9 +6,11 @@ import connHandle
 import threading
 import time
 
-
 #the main procudure
 def main():
+    #check the chipsheet path is valid
+    commons.checkChipSheet()
+
     #start connection handling thread
     queueThread = threading.Thread(target=connHandle.initSocket)
     queueThread.start()

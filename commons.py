@@ -1,10 +1,17 @@
 import random
 import handTypes
-#constants
+
 RANKS = [2, 3, 4, 5, 6, 7, 8, 9, "T", "J", "Q", "K", "A"]
 SUITS = ["H", "D", "S", "C"]
 BLIND = 20
-CHIPSHEETPATH = "D:\python\python_poker\chips_sheet.txt"
+CHIPSHEETPATH = ''
+
+def checkChipSheet():
+    try:
+        with open(CHIPSHEETPATH,"rt") as chipSheet:
+            pass
+    except:
+        raise Exception("chip sheet path invalid")
 
 def readChipSheet():
     with open(CHIPSHEETPATH,"rt") as chipSheet:
@@ -178,11 +185,17 @@ class Deck:
     
     #takeCard method(returns top of deck and removes from deck)
     def takeCard(self):
-        return self.deck.pop()
+        if not(self.isEmpty()):
+            return self.deck.pop()
+        else:
+            raise Exception("Deck is empty")
 
     #shuffle method(shuffles the deck)
     def shuffle(self):
         random.shuffle(self.deck)
+    
+    def isEmpty(self):
+        return len(self.deck) <= 0 
 
 #Common object
 class Common:
@@ -394,6 +407,7 @@ class Table:
         while (self.seats[i].bet != currentBet or self.seats[i].sittingOut or not(loopComplete)) and self.inPlay:
             if not(self.seats[i].sittingOut):
                     #bust handling
+                self.sendAll(f"{self.seats[i].name}'s turn\n")
                 bet = self.seats[i].callRaiseFold(currentBet)
                 if bet:
                     self.pool += bet
